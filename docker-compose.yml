@@ -1,0 +1,13 @@
+services:
+  watcher:
+    build:
+      context: ./watcher
+    image: ghcr.io/brett6320/osticket-queue-watcher/watcher:latest
+    restart: unless-stopped
+    env_file:
+      - ./watcher/.env
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

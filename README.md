@@ -53,6 +53,25 @@ docker build -t osticket-queue-watcher .
 docker run --env-file .env osticket-queue-watcher
 ```
 
+Or via Compose (builds from `watcher/Dockerfile` by default; drop the `build:` key in `docker-compose.yml` to pull the published image instead):
+
+```bash
+docker compose up -d
+```
+
+## CI/CD
+
+`.github/workflows/docker-build.yml` builds the watcher image natively for `linux/amd64` and `linux/arm64` on every PR and push to `main`, scans each arch with Trivy (blocks on fixable CRITICAL/HIGH), and on `main` merges both into one multi-arch manifest pushed to `ghcr.io/<repo>/watcher` as `:latest` and `:<sha>`.
+
+On top of that, a `release` job runs [semantic-release](https://semantic-release.gitbook.io/) against [Conventional Commits](https://www.conventionalcommits.org/) on `main`. When commits since the last release warrant a version bump (`fix:` → patch, `feat:` → minor, `BREAKING CHANGE:` → major), it:
+
+- Tags a GitHub Release with generated notes and updates `CHANGELOG.md`.
+- Retags the already-pushed manifest (no rebuild) as `:vX.Y.Z`, `:vX`, and `:vX.Y`.
+
+Commits like `chore:`/`docs:`/`refactor:` still get built and pushed to `:latest`/`:<sha>`, just without cutting a versioned release.
+
+`.github/workflows/codeql.yml` runs CodeQL `security-extended` over the JS/TS in `worker/` and `watcher/`.
+
 ## Message flow
 
 1. Email hits the routing address -> `worker/src/index.ts` `email()` handler parses it with `postal-mime` and calls `env.TICKET_QUEUE.send()`.
