@@ -15,6 +15,12 @@ async function pollOnce(): Promise<void> {
   const retries: string[] = [];
 
   for (const msg of messages) {
+    if (msg.parseError !== undefined) {
+      console.error(`Failed to parse message ${msg.id}, will retry: ${msg.parseError}`);
+      retries.push(msg.leaseId);
+      continue;
+    }
+
     try {
       await createTicket(msg.body);
       acks.push(msg.leaseId);
@@ -25,8 +31,12 @@ async function pollOnce(): Promise<void> {
     }
   }
 
-  await ackMessages(acks);
-  await retryMessages(retries);
+  const results = await Promise.allSettled([ackMessages(acks), retryMessages(retries)]);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error("Failed to ack/retry pulled messages (they'll requeue via visibility timeout):", result.reason);
+    }
+  }
 }
 
 async function main(): Promise<void> {

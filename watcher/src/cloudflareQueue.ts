@@ -7,12 +7,9 @@ const authHeaders = {
   "Content-Type": "application/json",
 };
 
-export interface PulledMessage<T> {
-  leaseId: string;
-  id: string;
-  attempts: number;
-  body: T;
-}
+export type PulledMessage<T> =
+  | { leaseId: string; id: string; attempts: number; body: T; parseError?: undefined }
+  | { leaseId: string; id: string; attempts: number; body?: undefined; parseError: string };
 
 interface PullApiMessage {
   id: string;
@@ -49,12 +46,18 @@ export async function pullMessages<T>(): Promise<PulledMessage<T>[]> {
     throw new Error(`Queue pull failed: ${JSON.stringify(data.errors ?? res.statusText)}`);
   }
 
-  return data.result.messages.map((m) => ({
-    leaseId: m.lease_id,
-    id: m.id,
-    attempts: m.attempts,
-    body: JSON.parse(m.body) as T,
-  }));
+  return data.result.messages.map((m): PulledMessage<T> => {
+    try {
+      return { leaseId: m.lease_id, id: m.id, attempts: m.attempts, body: JSON.parse(m.body) as T };
+    } catch (err) {
+      return {
+        leaseId: m.lease_id,
+        id: m.id,
+        attempts: m.attempts,
+        parseError: err instanceof Error ? err.message : String(err),
+      };
+    }
+  });
 }
 
 export async function ackMessages(leaseIds: string[]): Promise<void> {
