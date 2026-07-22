@@ -1,6 +1,10 @@
 import { config } from "./config.js";
 import type { TicketMessage } from "./types.js";
 
+function toDataUri(mimeType: string, content: string): string {
+  return `data:${mimeType};base64,${Buffer.from(content, "utf-8").toString("base64")}`;
+}
+
 export async function createTicket(ticket: TicketMessage): Promise<string> {
   const payload = {
     alert: true,
@@ -10,8 +14,8 @@ export async function createTicket(ticket: TicketMessage): Promise<string> {
     email: ticket.from,
     subject: ticket.subject,
     message: ticket.html
-      ? { "text/html": ticket.html }
-      : { "text/plain": ticket.text },
+      ? toDataUri("text/html", ticket.html)
+      : toDataUri("text/plain", ticket.text),
   };
 
   const res = await fetch(`${config.osticket.baseUrl}/api/tickets.json`, {
