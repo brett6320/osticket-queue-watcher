@@ -9,7 +9,7 @@ export async function createTicket(ticket: TicketMessage): Promise<string> {
   const payload = {
     alert: true,
     autorespond: true,
-    source: "Email",
+    source: "API",
     name: ticket.from,
     email: ticket.from,
     subject: ticket.subject,
