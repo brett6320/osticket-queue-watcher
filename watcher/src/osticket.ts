@@ -1,7 +1,7 @@
 import { config } from "./config.js";
 import type { TicketMessage } from "./types.js";
 
-export async function createTicket(ticket: TicketMessage): Promise<void> {
+export async function createTicket(ticket: TicketMessage): Promise<string> {
   const payload = {
     alert: true,
     autorespond: true,
@@ -23,8 +23,9 @@ export async function createTicket(ticket: TicketMessage): Promise<void> {
     body: JSON.stringify(payload),
   });
 
+  const body = await res.text();
   if (!res.ok) {
-    const body = await res.text();
     throw new Error(`osTicket API error ${res.status}: ${body}`);
   }
+  return body;
 }
