@@ -65,7 +65,7 @@ docker compose up -d
 
 On top of that, a `release` job runs [semantic-release](https://semantic-release.gitbook.io/) against [Conventional Commits](https://www.conventionalcommits.org/) on `main`. When commits since the last release warrant a version bump (`fix:` → patch, `feat:` → minor, `BREAKING CHANGE:` → major), it:
 
-- Tags a GitHub Release with generated notes and updates `CHANGELOG.md`.
+- Tags a GitHub Release with generated notes (no committed `CHANGELOG.md` — `main` requires PRs for all changes, so nothing pushes a commit directly to it).
 - Retags the already-pushed manifest (no rebuild) as `:vX.Y.Z`, `:vX`, and `:vX.Y`.
 
 Commits like `chore:`/`docs:`/`refactor:` still get built and pushed to `:latest`/`:<sha>`, just without cutting a versioned release.
