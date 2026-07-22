@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "osticket-email-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "queues": {
+    "producers": [
+      { "binding": "TICKET_QUEUE", "queue": "osticket-tickets" }
+    ]
+  }
+}
