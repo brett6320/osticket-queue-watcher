@@ -2,8 +2,8 @@
 
 Inbound email -> Cloudflare Queue -> osTicket ticket, in two pieces:
 
-- `worker/` — Cloudflare Worker with Email Routing bound to a Queue producer. Receives mail, parses it, pushes a JSON message to the queue.
-- `watcher/` — Node/TypeScript container. Polls the queue via the Queues HTTP Pull Consumer API and creates a ticket in osTicket via its REST API.
+- `worker/` — Cloudflare Worker with Email Routing bound to a Queue producer. Receives mail, base64-encodes the raw MIME, pushes it to the queue.
+- `watcher/` — Node/TypeScript container. Polls the queue via the Queues HTTP Pull Consumer API and submits the raw email to osTicket's email-piping API.
 
 ## 1. Queue
 
@@ -86,6 +86,6 @@ Commits like `chore:`/`docs:`/`refactor:` still get built and pushed to `:latest
 
 ## Message flow
 
-1. Email hits the routing address -> `worker/src/index.ts` `email()` handler parses it with `postal-mime` and calls `env.TICKET_QUEUE.send()`.
-2. `watcher/src/index.ts` polls `POST /queues/{id}/messages/pull` every `POLL_INTERVAL_MS`, decodes the base64 JSON body, and calls osTicket's `POST /api/tickets.json`.
+1. Email hits the routing address -> `worker/src/index.ts` `email()` handler base64-encodes the raw MIME bytes and calls `env.TICKET_QUEUE.send()`. No parsing happens here — osTicket parses the message itself.
+2. `watcher/src/index.ts` polls `POST /queues/{id}/messages/pull` every `POLL_INTERVAL_MS`, decodes the base64 email, and POSTs the raw MIME to osTicket's `POST /api/tickets.email` (its email-piping endpoint, not the JSON `tickets.json` one). osTicket matches the message against existing tickets via `Message-ID`/`In-Reply-To`/`References` headers and only creates a new ticket if nothing matches — the JSON API only supports creating new tickets, with no threading.
 3. On success the message is acked (`POST /queues/{id}/messages/ack`); on failure it's put back for retry with a delay.

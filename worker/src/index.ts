@@ -1,57 +1,34 @@
-import PostalMime, { type Address } from "postal-mime";
-
 export interface Env {
-  TICKET_QUEUE: Queue<TicketMessage>;
+  TICKET_QUEUE: Queue<QueuedEmail>;
 }
 
-export interface TicketMessage {
-  from: string;
-  fromName: string | undefined;
-  to: string;
-  cc: string | undefined;
-  subject: string;
-  text: string;
-  html: string | undefined;
-  messageId: string | undefined;
+export interface QueuedEmail {
+  rawEmailBase64: string;
   receivedAt: string;
 }
 
-function formatAddressList(addresses: Address[] | undefined): string | undefined {
-  if (!addresses || addresses.length === 0) return undefined;
-  return addresses
-    .flatMap((a) => (a.group ? a.group : [a]))
-    .map((a) => (a.name ? `${a.name} <${a.address}>` : (a.address ?? "")))
-    .filter(Boolean)
-    .join(", ");
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000; // avoid call-stack limits from spreading huge arrays
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
 }
 
 export default {
   async email(message, env, ctx): Promise<void> {
     const raw = await new Response(message.raw).arrayBuffer();
-    const parsed = await PostalMime.parse(raw);
 
-    // message.from/message.to are the SMTP envelope addresses, which
-    // upstream mail flow rules (e.g. an M365 redirect) commonly rewrite
-    // (SRS bounce address, single envelope recipient) for SPF compliance
-    // and delivery routing. The parsed From/To/Cc headers survive a
-    // redirect intact and reflect the actual original message.
-    const from = parsed.from?.address || message.from;
-    const fromName = parsed.from?.name || undefined;
-    const to = formatAddressList(parsed.to) || message.to;
-    const cc = formatAddressList(parsed.cc);
-
-    const ticket: TicketMessage = {
-      from,
-      fromName,
-      to,
-      cc,
-      subject: parsed.subject || "(no subject)",
-      text: parsed.text || parsed.html || "(empty message)",
-      html: parsed.html,
-      messageId: parsed.messageId,
+    const queuedEmail: QueuedEmail = {
+      // osTicket's /api/tickets.email endpoint parses the raw MIME message
+      // itself (headers, threading, attachments), so we just forward the
+      // bytes rather than parsing anything here.
+      rawEmailBase64: arrayBufferToBase64(raw),
       receivedAt: new Date().toISOString(),
     };
 
-    await env.TICKET_QUEUE.send(ticket);
+    await env.TICKET_QUEUE.send(queuedEmail);
   },
 } satisfies ExportedHandler<Env>;

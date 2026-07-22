@@ -1,44 +1,23 @@
 import { config } from "./config.js";
-import type { TicketMessage } from "./types.js";
+import type { QueuedEmail } from "./types.js";
 
-function toDataUri(mimeType: string, content: string): string {
-  return `data:${mimeType};base64,${Buffer.from(content, "utf-8").toString("base64")}`;
-}
+/**
+ * Posts the raw email to osTicket's email-piping endpoint (not the JSON
+ * tickets.json endpoint). osTicket parses the MIME message itself and
+ * matches it against existing tickets via Message-ID/In-Reply-To/References
+ * headers, only creating a new ticket if nothing matches — the JSON API
+ * only supports creating brand new tickets, with no threading.
+ */
+export async function submitEmail(email: QueuedEmail): Promise<string> {
+  const raw = Buffer.from(email.rawEmailBase64, "base64");
 
-function recipientsHeader(ticket: TicketMessage): string {
-  const lines = [`To: ${ticket.to}`];
-  if (ticket.cc) lines.push(`Cc: ${ticket.cc}`);
-  return lines.join("\n");
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-export async function createTicket(ticket: TicketMessage): Promise<string> {
-  const payload = {
-    alert: true,
-    autorespond: true,
-    source: "API",
-    name: ticket.fromName || ticket.from,
-    email: ticket.from,
-    subject: ticket.subject,
-    message: ticket.html
-      ? toDataUri("text/html", `<pre>${escapeHtml(recipientsHeader(ticket))}</pre><hr>${ticket.html}`)
-      : toDataUri("text/plain", `${recipientsHeader(ticket)}\n\n${ticket.text}`),
-  };
-
-  const res = await fetch(`${config.osticket.baseUrl}/api/tickets.json`, {
+  const res = await fetch(`${config.osticket.baseUrl}/api/tickets.email`, {
     method: "POST",
     headers: {
       "X-API-Key": config.osticket.apiKey,
-      "Content-Type": "application/json",
+      "Content-Type": "message/rfc822",
     },
-    body: JSON.stringify(payload),
+    body: raw,
   });
 
   const body = await res.text();

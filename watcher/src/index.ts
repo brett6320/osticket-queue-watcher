@@ -1,12 +1,12 @@
 import { config } from "./config.js";
 import { pullMessages, ackMessages, retryMessages } from "./cloudflareQueue.js";
-import { createTicket } from "./osticket.js";
-import type { TicketMessage } from "./types.js";
+import { submitEmail } from "./osticket.js";
+import type { QueuedEmail } from "./types.js";
 
 let stopping = false;
 
 async function pollOnce(): Promise<void> {
-  const messages = await pullMessages<TicketMessage>();
+  const messages = await pullMessages<QueuedEmail>();
   if (messages.length === 0) return;
 
   console.log(`Pulled ${messages.length} message(s)`);
@@ -22,11 +22,11 @@ async function pollOnce(): Promise<void> {
     }
 
     try {
-      await createTicket(msg.body);
+      const result = await submitEmail(msg.body);
       acks.push(msg.leaseId);
-      console.log(`Ticket created for message ${msg.id} (${msg.body.subject})`);
+      console.log(`Submitted message ${msg.id} to osTicket (response: ${result})`);
     } catch (err) {
-      console.error(`Failed to create ticket for message ${msg.id}:`, err);
+      console.error(`Failed to submit message ${msg.id} to osTicket:`, err);
       retries.push(msg.leaseId);
     }
   }
