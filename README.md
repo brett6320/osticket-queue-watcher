@@ -59,6 +59,18 @@ Or via Compose (builds from `watcher/Dockerfile` by default; drop the `build:` k
 docker compose up -d
 ```
 
+## Diagnostics
+
+`.diag/pull-diag.sh` (gitignored, host-side) does a raw curl against the Queues Pull API — useful since it's a public endpoint reachable from the host.
+
+The osTicket connectivity check instead runs *inside* the watcher container, since `OSTICKET_URL` is typically an internal hostname (e.g. `http://osticket`) only resolvable on the container's own network:
+
+```bash
+docker exec <container-name> /nodejs/bin/node dist/diag/osticket.js
+```
+
+(`/nodejs/bin/node` because the distroless base doesn't put `node` on `PATH` for `docker exec`, and there's no shell to fall back on.) It creates a dummy ticket ("[diag] osTicket API connectivity test") using the container's actual env vars and network, and prints the HTTP result.
+
 ## CI/CD
 
 `.github/workflows/docker-build.yml` builds the watcher image natively for `linux/amd64` and `linux/arm64` on every PR and push to `main`, scans each arch with Trivy (blocks on fixable CRITICAL/HIGH), and on `main` merges both into one multi-arch manifest pushed to `ghcr.io/<repo>/watcher` as `:latest` and `:<sha>`.
