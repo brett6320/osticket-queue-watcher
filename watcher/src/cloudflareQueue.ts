@@ -53,7 +53,7 @@ export async function pullMessages<T>(): Promise<PulledMessage<T>[]> {
     leaseId: m.lease_id,
     id: m.id,
     attempts: m.attempts,
-    body: JSON.parse(Buffer.from(m.body, "base64").toString("utf-8")) as T,
+    body: JSON.parse(m.body) as T,
   }));
 }
 
