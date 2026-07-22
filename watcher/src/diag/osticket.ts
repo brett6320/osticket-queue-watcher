@@ -6,7 +6,9 @@ async function main(): Promise<void> {
 
   const ticketNumber = await createTicket({
     from: "diag@example.com",
+    fromName: "Diag Script",
     to: "diag@example.com",
+    cc: undefined,
     subject: "[diag] osTicket API connectivity test",
     text: "Created by watcher's diag script to verify API access from inside the container. Safe to close/delete.",
     html: undefined,
