@@ -1,11 +1,4 @@
-export interface TicketMessage {
-  from: string;
-  fromName: string | undefined;
-  to: string;
-  cc: string | undefined;
-  subject: string;
-  text: string;
-  html: string | undefined;
-  messageId: string | undefined;
+export interface QueuedEmail {
+  rawEmailBase64: string;
   receivedAt: string;
 }
